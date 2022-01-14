@@ -606,8 +606,7 @@ public class CalculationService {
             case MakeProtectedFile:
                 // If not (k+1)-anonymisation or no suppression, use "old" procedure
                 if (!this.metadata.getCombinations().getProtectedFile().isKAnon() ||
-                        (!this.metadata.getCombinations().getProtectedFile().isWithEntropy() && 
-                            !this.metadata.getCombinations().getProtectedFile().isWithPrior())){
+                        this.metadata.getCombinations().getProtectedFile().getSuppressionType() == ProtectedFile.NO_SUPPRESSION){
                     makeFileInBackground();
                 } else { // Use k-anonymity precedure
                     makeFileInBackgroundKAnon();

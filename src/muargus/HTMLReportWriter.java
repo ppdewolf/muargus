@@ -101,7 +101,7 @@ public class HTMLReportWriter {
     private static Element writeOtherModificationsTable(MetadataMu metadata) {
         Element p = HTMLReportWriter.doc.createElement("p");
         addChildElement(p, "h2", "Other modifications");
-        Element TRS, tr1, tr2;
+        Element TRS, tr1, tr2, tr3;
         Element table = addChildElement(p, "table");
         Element tr = addChildElement(table, "tr");
         addChildElement(tr, "th", "Method");
@@ -153,42 +153,44 @@ public class HTMLReportWriter {
                 }
             }
             else{
-                tr1 = addChildElement(table, "tr");
-                addChildElement(tr1, "td", replacement.getReplacementFile().getReplacementType()); 
+                tr = addChildElement(table, "tr");
+                addChildElement(tr, "td", replacement.getReplacementFile().getReplacementType()); 
                 if (replacement instanceof TargetSwappingSpec){
-                    TRS=addChildElement(tr1,"td");
+                    TRS=addChildElement(tr,"td");
                     tr2=addChildElement(TRS,"table","class","inrow");
-                    tr=addChildElement(tr2,"tr");
-                    addChildElement(tr,"td","Similarity:");
+                    tr1=addChildElement(tr2,"tr");
+                    addChildElement(tr1,"td","Similarity:");
                     String Info="";
                     for (int index : ((TargetSwappingSpec) replacement).getSimilarIndexes()){
                         Info = Info + " " + replacement.getOutputVariables().get(index).getName() + ",";
                     }
-                    addChildElement(tr,"td",Info.substring(0,Info.length()-1));
-                    tr=addChildElement(tr2,"tr");
-                    addChildElement(tr,"td","Hierarchy:");
+                    addChildElement(tr1,"td",Info.substring(0,Info.length()-1));
+                    tr1=addChildElement(tr2,"tr");
+                    addChildElement(tr1,"td","Hierarchy:");
                     Info="";
                     for (int index : ((TargetSwappingSpec) replacement).getHierarchyIndexes()){
                         Info = Info + " " + replacement.getOutputVariables().get(index).getName() + ",";
                     }
-                    addChildElement(tr,"td",Info.substring(0,Info.length()-1));
-                    tr=addChildElement(tr2,"tr");
-                    addChildElement(tr,"td","Risk:");
+                    addChildElement(tr1,"td",Info.substring(0,Info.length()-1));
+                    tr1=addChildElement(tr2,"tr");
+                    addChildElement(tr1,"td","Risk:");
                     Info="";
                     for (int index : ((TargetSwappingSpec) replacement).getRiskIndexes()){
                         Info = Info + " " + replacement.getOutputVariables().get(index).getName() + ",";
                     }
-                    addChildElement(tr,"td",Info.substring(0,Info.length()-1));
-                    tr=addChildElement(tr2,"tr");
-                    addChildElement(tr,"td","CarryOver:");
-                    Info="";
-                    for (int index : ((TargetSwappingSpec) replacement).getCarryIndexes()){
-                        Info = Info + " " + replacement.getOutputVariables().get(index).getName() + ",";
+                    addChildElement(tr1,"td",Info.substring(0,Info.length()-1));
+                    tr1=addChildElement(tr2,"tr");
+                    if (((TargetSwappingSpec) replacement).getCarryIndexes().length>0){
+                        addChildElement(tr1,"td","CarryOver:");
+                        Info="";
+                        for (int index : ((TargetSwappingSpec) replacement).getCarryIndexes()){
+                            Info = Info + " " + replacement.getOutputVariables().get(index).getName() + ",";
+                        }
+                        addChildElement(tr1,"td",Info.substring(0,Info.length()-1));
                     }
-                    addChildElement(tr,"td",Info.substring(0,Info.length()-1));
-                    tr=addChildElement(tr2,"tr");
-                    addChildElement(tr,"td","HouseholdID:");
-                    addChildElement(tr,"td",replacement.getOutputVariables().get(((TargetSwappingSpec) replacement).getHHID()).getName());
+                    tr1=addChildElement(tr2,"tr");
+                    addChildElement(tr1,"td","HouseholdID:");
+                    addChildElement(tr1,"td",replacement.getOutputVariables().get(((TargetSwappingSpec) replacement).getHHID()).getName());
                 } else addChildElement(tr, "td", VariableMu.printVariableNames(replacement.getOutputVariables()));
                 if (replacement instanceof RankSwappingSpec) {
                     addChildElement(tr, "td", String.format("Percentage: %d %%", ((RankSwappingSpec) replacement).getPercentage()));
@@ -204,36 +206,17 @@ public class HTMLReportWriter {
                     }
                     addChildElement(tr, "td", alpha.substring(0, alpha.length() - 1));
                 } else if (replacement instanceof TargetSwappingSpec){
-                        TRS=addChildElement(tr1,"td");
+                        TRS=addChildElement(tr,"td");
                         tr2=addChildElement(TRS,"table","class","inrow");
-                        tr=addChildElement(tr2,"tr");
-                        addChildElement(tr,"td","Seed:");
-                        addChildElement(tr,"td",String.format("%d",((TargetSwappingSpec) replacement).getSeed()));
-                        tr=addChildElement(tr2,"tr");
-                        addChildElement(tr,"td","Swaprate:");
-                        addChildElement(tr,"td",String.format("%5.3f",((TargetSwappingSpec) replacement).getSwaprate()));
-                        tr=addChildElement(tr2,"tr");
-                        addChildElement(tr,"td","RiskThreshold (k):");
-                        addChildElement(tr,"td",String.format("%d",((TargetSwappingSpec) replacement).getkThreshold()));
-                }
-                
-                if (replacement instanceof TargetSwappingSpec){
-                    addChildElement(p, "h2", "Info on Targeted Record Swapping");
-                    table = addChildElement(p, "table");
-                    tr=addChildElement(table,"tr");
-                    addChildElement(tr,"td","Number of swapped households:");
-                    addChildElement(tr,"td",String.format("%d",((TargetSwappingSpec) replacement).getCountSwappedHID()));
-                    tr=addChildElement(table,"tr");
-                    addChildElement(tr,"td","Number of swapped records:");
-                    addChildElement(tr,"td",String.format("%d",((TargetSwappingSpec) replacement).getCountSwappedRecords()));
-                    if (((TargetSwappingSpec) replacement).getCountNoDonor()>0){
-                        tr=addChildElement(table,"tr");
-                        addChildElement(tr,"td","Number of households without donor:");
-                        addChildElement(tr,"td",String.format("%d",((TargetSwappingSpec) replacement).getCountNoDonor()));
-                        table = addChildElement(p,"table");
-                        tr=addChildElement(table,"tr");
-                        addChildElement(tr,"td","See "+MuARGUS.getTempDir()+"\\NonSwappedHID.txt for HIDs of households for which no donor was found.");
-                    }
+                        tr3=addChildElement(tr2,"tr");
+                        addChildElement(tr3,"td","Seed:");
+                        addChildElement(tr3,"td",String.format("%d",((TargetSwappingSpec) replacement).getSeed()));
+                        tr3=addChildElement(tr2,"tr");
+                        addChildElement(tr3,"td","Swaprate:");
+                        addChildElement(tr3,"td",String.format("%5.3f",((TargetSwappingSpec) replacement).getSwaprate()));
+                        tr3=addChildElement(tr2,"tr");
+                        addChildElement(tr3,"td","RiskThreshold (k):");
+                        addChildElement(tr3,"td",String.format("%d",((TargetSwappingSpec) replacement).getkThreshold()));
                 }
             }
         }
@@ -271,7 +254,30 @@ public class HTMLReportWriter {
             }
             addChildElement(tr, "td", "HouseHold Identification variable has been removed from the safe file");
         }
-        return writePRAMTable(metadata, table, tr, p);
+        
+        writePRAMTable(metadata, table, tr, p);
+        
+        for (ReplacementSpec replacement : metadata.getReplacementSpecs()) {        
+            if (replacement instanceof TargetSwappingSpec){
+                addChildElement(p, "h2", "Info on Targeted Record Swapping results");
+                table = addChildElement(p, "table");
+                tr=addChildElement(table,"tr");
+                addChildElement(tr,"td","Number of swapped households:");
+                addChildElement(tr,"td",String.format("%d",((TargetSwappingSpec) replacement).getCountSwappedHID()));
+                tr=addChildElement(table,"tr");
+                addChildElement(tr,"td","Number of swapped records:");
+                addChildElement(tr,"td",String.format("%d",((TargetSwappingSpec) replacement).getCountSwappedRecords()));
+                if (((TargetSwappingSpec) replacement).getCountNoDonor()>0){
+                    tr=addChildElement(table,"tr");
+                    addChildElement(tr,"td","Number of households without donor:");
+                    addChildElement(tr,"td",String.format("%d",((TargetSwappingSpec) replacement).getCountNoDonor()));
+                    table = addChildElement(p,"table");
+                    tr=addChildElement(table,"tr");
+                    addChildElement(tr,"td","See "+MuARGUS.getTempDir()+"\\NonSwappedHID.txt for HIDs of households for which no donor was found.");
+                }
+            }
+        }
+        return p;
     }
 
     /**
@@ -635,7 +641,7 @@ public class HTMLReportWriter {
      */
     private static Element writeFooter() {
         Element p = HTMLReportWriter.doc.createElement("p");
-        addChildElement(p, "h2", "\u03bc-ARGUS version: " + String.format("%d.%d.%s (build: %d)",
+        addChildElement(p, "h2", "µ-ARGUS version: " + String.format("%d.%d.%s (build: %d)",
                 MuARGUS.MAJOR, MuARGUS.MINOR, MuARGUS.REVISION, MuARGUS.BUILD));
         return p;
     }
@@ -740,7 +746,7 @@ public class HTMLReportWriter {
      */
     private static Element writeHeader() {
         Element elm = HTMLReportWriter.doc.createElement("head");
-        addChildElement(elm, "title", "\u03bc-ARGUS Report");
+        addChildElement(elm, "title", "µ-ARGUS Report");
         Element meta = addChildElement(elm, "META", "name", "author");
         meta.setAttribute("content", "Statistics; Netherlands");
         Element link = addChildElement(elm, "link", "rel", "stylesheet");

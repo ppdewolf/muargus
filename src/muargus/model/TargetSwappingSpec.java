@@ -28,6 +28,7 @@ public class TargetSwappingSpec extends ReplacementSpec {
     private int count_HID;
     private int count_records;
     private int count_nodonor;
+    private boolean IsCalculated;
     
     
     /**
@@ -52,8 +53,17 @@ public class TargetSwappingSpec extends ReplacementSpec {
         this.count_HID = 0;
         this.count_records = 0;
         this.count_nodonor = 0;
+        this.IsCalculated = false;
     }
 
+    public boolean getIsCalculated(){
+        return IsCalculated;
+    }
+    
+    public void setIsCalculated(boolean b){
+        IsCalculated = b;
+    }
+    
     public int getCountSwappedHID(){
         return count_HID;
     }

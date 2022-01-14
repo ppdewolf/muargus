@@ -21,6 +21,7 @@ import argus.utils.SystemUtils;
 import java.io.File;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import muargus.controller.ControllerBase;
 import org.apache.commons.io.FilenameUtils;
 
 /**
@@ -28,7 +29,7 @@ import org.apache.commons.io.FilenameUtils;
  *
  * @author Statistics Netherlands
  */
-public class OpenMicrodataView extends DialogBase {
+public class OpenMicrodataView extends DialogBase<ControllerBase> {
 
     private boolean canSelectSpss;
 

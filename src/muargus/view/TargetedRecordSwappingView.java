@@ -122,15 +122,17 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
      */
     private void updateValues() {
         TargetedRecordSwapping TRS = this.getMetadata().getCombinations().getTargetedRecordSwapping();
-        boolean b;
+        boolean b = false, bc = false, bb;
         if (TRS.getTargetSwappings().size() > 0){
             b = (TRS.getTargetSwappings().get(TRS.getTargetSwappings().size() - 1).getReplacementFile() != null);
+            bc = TRS.getTargetSwappings().get(TRS.getTargetSwappings().size() - 1).getIsCalculated();
         }
-        else {
-            b = false;
-        }
-        this.calculateButton.setEnabled(getSelectedRiskVariables().size()*getSelectedSimilarVariables().size()*getSelectedHierarchyVariables().size() > 0);
-        this.undoButton.setEnabled(b && this.calculateButton.isEnabled());
+
+        bb = getSelectedVariables(this.riskListModel).size()*getSelectedVariables(this.similarListModel).size()*getSelectedVariables(this.hierarchyListModel).size() > 0;
+        
+        this.enableMoveButtons(!bc);
+        this.undoButton.setEnabled(bc);        
+        this.calculateButton.setEnabled(bb && !bc);
     }
 
     /**
@@ -165,13 +167,13 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         for (ReplacementSpec spec : this.model.getTargetSwappings()) {
             if (spec.getOutputVariables().contains(variable)) {
                 String hs = "";
-                if (this.getSelectedSimilarVariables().contains(variable))
+                if (this.getSelectedVariables(this.similarListModel).contains(variable))
                     hs += "S";
-                if (this.getSelectedHierarchyVariables().contains(variable))
+                if (this.getSelectedVariables(this.hierarchyListModel).contains(variable))
                     hs += "H";
-                if (this.getSelectedRiskVariables().contains(variable))
+                if (this.getSelectedVariables(this.riskListModel).contains(variable))
                     hs += "R";
-                if (this.getSelectedCarryVariables().contains(variable))
+                if (this.getSelectedVariables(this.carryListModel).contains(variable))
                     hs += "C";                
                 return hs;              
             }
@@ -179,17 +181,29 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         return "";
     }
 
+    
+    /**
+     * Gets the variables displayed in a list in this view
+     * 
+     * @param DisplayedList The ListModel to look at
+     * @return ArrayList of VaiableMu's containing the displayed variables
+     */
+    
+    public ArrayList<VariableMu> getSelectedVariables(DefaultListModel DisplayedList) {
+        ArrayList<VariableMu> selected = new ArrayList<>();
+        for (Object variable : DisplayedList.toArray()) {
+            selected.add((VariableMu) variable);
+        }
+        return selected;
+    }
+    
     /**
      * Gets the selected variables in similarList.
      *
      * @return Arraylist of VariableMu's containing the selected variables.
      */
     public ArrayList<VariableMu> getSelectedSimilarVariables() {
-        ArrayList<VariableMu> selected = new ArrayList<>();
-        for (Object variable : ((DefaultListModel) this.similarList.getModel()).toArray()) {
-            selected.add((VariableMu) variable);
-        }
-        return selected;
+        return getSelectedVariables(this.similarListModel);
     }
     
     /**
@@ -198,11 +212,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
      * @return Arraylist of VariableMu's containing the selected variables.
      */
     public ArrayList<VariableMu> getSelectedHierarchyVariables() {
-        ArrayList<VariableMu> selected = new ArrayList<>();
-        for (Object variable : ((DefaultListModel) this.hierarchyList.getModel()).toArray()) {
-            selected.add((VariableMu) variable);
-        }
-        return selected;
+        return getSelectedVariables(this.hierarchyListModel);
     }
     /**
      * Gets the selected variables in riskList.
@@ -210,11 +220,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
      * @return Arraylist of VariableMu's containing the selected variables.
      */
     public ArrayList<VariableMu> getSelectedRiskVariables() {
-        ArrayList<VariableMu> selected = new ArrayList<>();
-        for (Object variable : ((DefaultListModel) this.riskList.getModel()).toArray()) {
-            selected.add((VariableMu) variable);
-        }
-        return selected;
+        return getSelectedVariables(this.riskListModel);
     }
     /**
      * Gets the selected variables in carryList.
@@ -222,11 +228,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
      * @return Arraylist of VariableMu's containing the selected variables.
      */
     public ArrayList<VariableMu> getSelectedCarryVariables() {
-        ArrayList<VariableMu> selected = new ArrayList<>();
-        for (Object variable : ((DefaultListModel) this.carryList.getModel()).toArray()) {
-            selected.add((VariableMu) variable);
-        }
-        return selected;
+        return getSelectedVariables(this.carryListModel);
     }
     
     /**
@@ -240,6 +242,27 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         } catch (NumberFormatException ex) {
             return 0;
         }
+    }
+
+    public void enableMoveButtons(boolean buttonstatus){
+        this.unSimilarButton.setEnabled(buttonstatus);
+        this.unHierarchyButton.setEnabled(buttonstatus);
+        this.unRiskButton.setEnabled(buttonstatus);
+        this.unCarryButton.setEnabled(buttonstatus);
+        this.tosimilarButton.setEnabled(buttonstatus);
+        this.tohierarchyButton.setEnabled(buttonstatus);
+        this.toriskButton.setEnabled(buttonstatus);
+        this.tocarryButton.setEnabled(buttonstatus);
+        this.downsimilar.setEnabled(buttonstatus);
+        this.downhierarchy.setEnabled(buttonstatus);
+        this.downrisk.setEnabled(buttonstatus);
+        this.downcarry.setEnabled(buttonstatus);
+        this.upsimilar.setEnabled(buttonstatus);
+        this.uphierarchy.setEnabled(buttonstatus);
+        this.uprisk.setEnabled(buttonstatus);
+        this.upcarry.setEnabled(buttonstatus);
+        this.calculateButton.setEnabled(buttonstatus);
+        this.undoButton.setEnabled(!buttonstatus);
     }
     
     /**
@@ -301,19 +324,19 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         variablesTable = new javax.swing.JTable();
         jPanel2 = new javax.swing.JPanel();
         jScrollPane2 = new javax.swing.JScrollPane();
-        similarList = new javax.swing.JList();
+        similarList = new javax.swing.JList<>();
         upsimilar = new javax.swing.JButton();
         downsimilar = new javax.swing.JButton();
         unSimilarButton = new javax.swing.JButton();
         jPanel5 = new javax.swing.JPanel();
         jScrollPane3 = new javax.swing.JScrollPane();
-        hierarchyList = new javax.swing.JList();
+        hierarchyList = new javax.swing.JList<>();
         downhierarchy = new javax.swing.JButton();
         uphierarchy = new javax.swing.JButton();
         unHierarchyButton = new javax.swing.JButton();
         jPanel3 = new javax.swing.JPanel();
         jScrollPane4 = new javax.swing.JScrollPane();
-        riskList = new javax.swing.JList();
+        riskList = new javax.swing.JList<>();
         uprisk = new javax.swing.JButton();
         downrisk = new javax.swing.JButton();
         unRiskButton = new javax.swing.JButton();
@@ -334,7 +357,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         okButton = new javax.swing.JButton();
         jPanel9 = new javax.swing.JPanel();
         jScrollPane5 = new javax.swing.JScrollPane();
-        carryList = new javax.swing.JList();
+        carryList = new javax.swing.JList<>();
         downcarry = new javax.swing.JButton();
         unCarryButton = new javax.swing.JButton();
         upcarry = new javax.swing.JButton();
@@ -382,7 +405,6 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         jScrollPane2.setViewportView(similarList);
 
         upsimilar.setText("↑");
-        upsimilar.setToolTipText("");
         upsimilar.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 upsimilarActionPerformed(evt);
@@ -390,7 +412,6 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         });
 
         downsimilar.setText("↓");
-        downsimilar.setToolTipText("");
         downsimilar.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 downsimilarActionPerformed(evt);
@@ -412,11 +433,11 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
                 .addComponent(upsimilar)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(downsimilar))
-            .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.CENTER, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
             .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel2Layout.createSequentialGroup()
                 .addContainerGap()
                 .addComponent(unSimilarButton, javax.swing.GroupLayout.DEFAULT_SIZE, 80, Short.MAX_VALUE)
                 .addContainerGap())
+            .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -459,18 +480,15 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         jPanel5.setLayout(jPanel5Layout);
         jPanel5Layout.setHorizontalGroup(
             jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel5Layout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
-                    .addGroup(jPanel5Layout.createSequentialGroup()
-                        .addComponent(uphierarchy)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(downhierarchy))
-                    .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 100, javax.swing.GroupLayout.PREFERRED_SIZE)))
+            .addGroup(javax.swing.GroupLayout.Alignment.CENTER, jPanel5Layout.createSequentialGroup()
+                .addComponent(uphierarchy)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(downhierarchy))
             .addGroup(jPanel5Layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(unHierarchyButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(unHierarchyButton, javax.swing.GroupLayout.DEFAULT_SIZE, 80, Short.MAX_VALUE)
                 .addContainerGap())
+            .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
         );
         jPanel5Layout.setVerticalGroup(
             jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -490,7 +508,6 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         jScrollPane4.setViewportView(riskList);
 
         uprisk.setText("↑");
-        uprisk.setToolTipText("");
         uprisk.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 upriskActionPerformed(evt);
@@ -498,7 +515,6 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         });
 
         downrisk.setText("↓");
-        downrisk.setToolTipText("");
         downrisk.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 downriskActionPerformed(evt);
@@ -553,12 +569,13 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         jPanel6.setBorder(javax.swing.BorderFactory.createTitledBorder("Threshold (k-anon)"));
 
         kthresholdTextField.setText("3");
+        kthresholdTextField.setPreferredSize(new java.awt.Dimension(6, 20));
 
         javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
         jPanel6.setLayout(jPanel6Layout);
         jPanel6Layout.setHorizontalGroup(
             jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(kthresholdTextField)
+            .addComponent(kthresholdTextField, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         jPanel6Layout.setVerticalGroup(
             jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -568,12 +585,13 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         jPanel7.setBorder(javax.swing.BorderFactory.createTitledBorder("Swaprate"));
 
         swaprateTextField.setText("0.15");
+        swaprateTextField.setPreferredSize(new java.awt.Dimension(6, 20));
 
         javax.swing.GroupLayout jPanel7Layout = new javax.swing.GroupLayout(jPanel7);
         jPanel7.setLayout(jPanel7Layout);
         jPanel7Layout.setHorizontalGroup(
             jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(swaprateTextField)
+            .addComponent(swaprateTextField, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         jPanel7Layout.setVerticalGroup(
             jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -583,6 +601,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         jPanel8.setBorder(javax.swing.BorderFactory.createTitledBorder("Seed"));
 
         seedTextField.setText("12345");
+        seedTextField.setPreferredSize(new java.awt.Dimension(6, 20));
 
         javax.swing.GroupLayout jPanel8Layout = new javax.swing.GroupLayout(jPanel8);
         jPanel8.setLayout(jPanel8Layout);
@@ -630,7 +649,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             }
         });
 
-        okButton.setText("OK");
+        okButton.setText("Close");
         okButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 okButtonActionPerformed(evt);
@@ -638,11 +657,11 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         });
 
         jPanel9.setBorder(javax.swing.BorderFactory.createTitledBorder("Carry"));
+        jPanel9.setPreferredSize(new java.awt.Dimension(112, 275));
 
         jScrollPane5.setViewportView(carryList);
 
         downcarry.setText("↓");
-        downcarry.setToolTipText("");
         downcarry.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 downcarryActionPerformed(evt);
@@ -657,7 +676,6 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         });
 
         upcarry.setText("↑");
-        upcarry.setToolTipText("");
         upcarry.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 upcarryActionPerformed(evt);
@@ -668,16 +686,16 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         jPanel9.setLayout(jPanel9Layout);
         jPanel9Layout.setHorizontalGroup(
             jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
             .addGroup(jPanel9Layout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(unCarryButton, javax.swing.GroupLayout.Alignment.CENTER, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(javax.swing.GroupLayout.Alignment.CENTER, jPanel9Layout.createSequentialGroup()
+                .addGap(8, 8, 8)
+                .addGroup(jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
+                    .addGroup(jPanel9Layout.createSequentialGroup()
                         .addComponent(upcarry)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(downcarry)))
+                        .addComponent(downcarry))
+                    .addComponent(unCarryButton, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+            .addComponent(jScrollPane5, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
         );
         jPanel9Layout.setVerticalGroup(
             jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -723,10 +741,10 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
                                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                                 .addComponent(jPanel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                            .addGroup(layout.createSequentialGroup()
                                 .addGap(103, 103, 103)
-                                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, 470, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, 466, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
                             .addComponent(jPanel8, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                             .addComponent(calculateButton)
@@ -792,6 +810,17 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     }// </editor-fold>//GEN-END:initComponents
 
     private void okButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_okButtonActionPerformed
+        if (this.model.getTargetSwappings().size() > 0){ 
+            TargetSwappingSpec spec = this.model.getTargetSwappings().get(this.model.getTargetSwappings().size() - 1);
+            if (!spec.getIsCalculated()){
+                if (!this.showConfirmDialog("TRS is not applied yet. Are you sure you want to close this window?"))
+                    return;
+            }
+        }
+        else if (this.calculateButton.isEnabled()){
+                if(!this.showConfirmDialog("TRS is not applied yet. Are you sure you want to close this window?"))
+                    return;
+        }
         setVisible(false);
     }//GEN-LAST:event_okButtonActionPerformed
 
@@ -927,13 +956,13 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton calculateButton;
-    private javax.swing.JList carryList;
+    private javax.swing.JList<VariableMu> carryList;
     private javax.swing.JButton downcarry;
     private javax.swing.JButton downhierarchy;
     private javax.swing.JButton downrisk;
     private javax.swing.JButton downsimilar;
     private javax.swing.JTextField hhIDTextField;
-    private javax.swing.JList hierarchyList;
+    private javax.swing.JList<VariableMu> hierarchyList;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
@@ -951,9 +980,9 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     private javax.swing.JTextField kthresholdTextField;
     private javax.swing.JButton okButton;
     private javax.swing.JProgressBar progressBar;
-    private javax.swing.JList riskList;
+    private javax.swing.JList<VariableMu> riskList;
     private javax.swing.JTextField seedTextField;
-    private javax.swing.JList similarList;
+    private javax.swing.JList<VariableMu> similarList;
     private javax.swing.JTextField swaprateTextField;
     private javax.swing.JButton tocarryButton;
     private javax.swing.JButton tohierarchyButton;

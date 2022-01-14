@@ -138,6 +138,8 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
         getView().setProgress(0);
         getView().showStepName("");
         getTargetedRecordSwappingView().updateVariableRows(swapping);
+        swapping.setIsCalculated(true);
+        getTargetedRecordSwappingView().enableMoveButtons(false);
     }
 
     /**
@@ -164,7 +166,7 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
     }
 
     /**
-     * Undo's the numerical rank swapping
+     * Undo the applied Targeted Record Swapping
      */
     public void undo() {
         ArrayList<VariableMu> selected = new ArrayList<>();
@@ -205,6 +207,8 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
                     this.metadata.getReplacementSpecs().remove(swapping);
                     SystemUtils.writeLogbook("Targeted Record Swapping has been undone.");
                     getTargetedRecordSwappingView().updateVariableRows(swapping);
+                    swapping.setIsCalculated(false);
+                    getTargetedRecordSwappingView().enableMoveButtons(true);                    
                     return;
                 }
             }
@@ -213,7 +217,6 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
         
         getView().showMessage(String.format("Targeted Record Swapping involving %s not found.\n"
                 + "The available swapping" + rankSwappings, VariableMu.printVariableNames(selected)));
-                //"Nothing to Undo: Targeted Record Swapping was not applied yet.\n"));
     }
 
     /**
