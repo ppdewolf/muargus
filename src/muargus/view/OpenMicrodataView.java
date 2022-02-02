@@ -249,9 +249,7 @@ public class OpenMicrodataView extends DialogBase<ControllerBase> {
         this.fileChooser.setSelectedFile(new File(""));
         this.fileChooser.resetChoosableFileFilters();
         // filters are shown in order of declaration, setFileFilter sets the default filter
-        this.fileChooser.setFileFilter(new FileNameExtensionFilter("Microdata (*.asc)", "asc"));
-        this.fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Comma Separated File (*.csv)", "csv"));
-        this.fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Microdata (*.dat)", "dat"));
+        this.fileChooser.setFileFilter(new FileNameExtensionFilter("Microdata (*.asc; *.dat; *.csv)", "asc", "dat", "csv"));
         if (this.canSelectSpss) {
             this.fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("SPSS system file (*.sav)", "sav"));
         }
