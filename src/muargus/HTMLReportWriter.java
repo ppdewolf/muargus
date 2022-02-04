@@ -101,7 +101,7 @@ public class HTMLReportWriter {
     private static Element writeOtherModificationsTable(MetadataMu metadata) {
         Element p = HTMLReportWriter.doc.createElement("p");
         addChildElement(p, "h2", "Other modifications");
-        Element TRS, tr1, tr2, tr3;
+        Element TRS, tr1, tr2, tr3, tr0, tr00, tdP;
         Element table = addChildElement(p, "table");
         Element tr = addChildElement(table, "tr");
         addChildElement(tr, "th", "Method");
@@ -160,11 +160,29 @@ public class HTMLReportWriter {
                     tr2=addChildElement(TRS,"table","class","inrow");
                     tr1=addChildElement(tr2,"tr");
                     addChildElement(tr1,"td","Similarity:");
+                    tdP=addChildElement(tr1,"td");
+                    tr0=addChildElement(tdP,"table","class","inrow");
                     String Info="";
-                    for (int index : ((TargetSwappingSpec) replacement).getSimilarIndexes()){
-                        Info = Info + " " + replacement.getOutputVariables().get(index).getName() + ",";
+                    if (((TargetSwappingSpec) replacement).getNProfiles()==1) {
+                        tr00=addChildElement(tr0,"tr");
+                        for (int index : ((TargetSwappingSpec) replacement).getSimilarIndexes()){
+                            Info = Info + " " + replacement.getOutputVariables().get(index).getName() + ",";
+                        }
+                        addChildElement(tr00,"td",Info.substring(0,Info.length()-1));
                     }
-                    addChildElement(tr1,"td",Info.substring(0,Info.length()-1));
+                    else{
+                        int k=0;
+                        for (int profile=0; profile < ((TargetSwappingSpec) replacement).getNProfiles(); profile++){
+                            tr00 = addChildElement(tr0,"tr");
+                            Info = "Profile " + (profile + 1) + ":";
+                            for (int j=0;j<((TargetSwappingSpec) replacement).getNSim()[profile];j++){
+                                Info = Info + " " + replacement.getOutputVariables().get(((TargetSwappingSpec) replacement).getSimilarIndexes()[k+j]).getName() + ",";
+                            }
+                            k += ((TargetSwappingSpec) replacement).getNSim()[profile];
+                            addChildElement(tr00,"td",Info.substring(0,Info.length()-1));
+                        }
+                    }
+
                     tr1=addChildElement(tr2,"tr");
                     addChildElement(tr1,"td","Hierarchy:");
                     Info="";
@@ -181,7 +199,7 @@ public class HTMLReportWriter {
                     addChildElement(tr1,"td",Info.substring(0,Info.length()-1));
                     tr1=addChildElement(tr2,"tr");
                     if (((TargetSwappingSpec) replacement).getCarryIndexes().length>0){
-                        addChildElement(tr1,"td","CarryOver:");
+                        addChildElement(tr1,"td","CarryAlong:");
                         Info="";
                         for (int index : ((TargetSwappingSpec) replacement).getCarryIndexes()){
                             Info = Info + " " + replacement.getOutputVariables().get(index).getName() + ",";
@@ -215,8 +233,8 @@ public class HTMLReportWriter {
                         addChildElement(tr3,"td","Swaprate:");
                         addChildElement(tr3,"td",String.format("%5.3f",((TargetSwappingSpec) replacement).getSwaprate()));
                         tr3=addChildElement(tr2,"tr");
-                        addChildElement(tr3,"td","RiskThreshold (k):");
-                        addChildElement(tr3,"td",String.format("%d",((TargetSwappingSpec) replacement).getkThreshold()));
+                        addChildElement(tr3,"td","K-anonymity:");
+                        addChildElement(tr3,"td",String.format("k = %d",((TargetSwappingSpec) replacement).getkThreshold()));
                 }
             }
         }

@@ -89,6 +89,7 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
                                  muargus.MuARGUS.getDefaultSeparator(),
                                  swapping.getOutputVariables().size(),
                                  swapping.getSwaprate(),
+                                 swapping.getNProfiles(),
                                  swapping.getSimilarIndexes(),
                                  swapping.getNSim(),
                                  swapping.getHierarchyIndexes(),
@@ -170,7 +171,9 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
      */
     public void undo() {
         ArrayList<VariableMu> selected = new ArrayList<>();
-        selected.addAll(getTargetedRecordSwappingView().getSelectedSimilarVariables());
+        for (VariableMu variable : getTargetedRecordSwappingView().getSelectedSimilarVariables()){
+            if (!selected.contains(variable)) selected.add(variable);
+        }
         for (VariableMu variable : getTargetedRecordSwappingView().getSelectedHierarchyVariables()){
             if (!selected.contains(variable)) selected.add(variable);
         }
@@ -192,7 +195,7 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
             return;
         }
         
-        String rankSwappings = (getModel().getTargetSwappings().size()>1) ? "s are:" : " is:";
+        String TargetSwappings = (getModel().getTargetSwappings().size()>1) ? "s are:" : " is:";
         for (TargetSwappingSpec swapping : getModel().getTargetSwappings()) {
             if (swapping.getOutputVariables().size() == selected.size()) {
                 boolean difference = false;
@@ -212,11 +215,11 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
                     return;
                 }
             }
-            rankSwappings += "\n- " + VariableMu.printVariableNames(swapping.getOutputVariables());
+            TargetSwappings += "\n- " + VariableMu.printVariableNames(swapping.getOutputVariables());
         }
         
         getView().showMessage(String.format("Targeted Record Swapping involving %s not found.\n"
-                + "The available swapping" + rankSwappings, VariableMu.printVariableNames(selected)));
+                + "The available swapping" + TargetSwappings, VariableMu.printVariableNames(selected)));
     }
 
     /**
@@ -226,6 +229,8 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
         if (!checkFields()) {
             return;
         }
+        
+        int nProfiles = getTargetedRecordSwappingView().getNumberofProfiles();
         
         ArrayList<VariableMu> selectedSimilarVariables = getTargetedRecordSwappingView().getSelectedSimilarVariables();
         ArrayList<VariableMu> selectedHierarchyVariables = getTargetedRecordSwappingView().getSelectedHierarchyVariables();
@@ -238,8 +243,9 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
         }
         
         ArrayList<VariableMu> selectedVariables = new ArrayList<>();
-        
-        selectedVariables.addAll(selectedSimilarVariables);
+        for (VariableMu variable : selectedSimilarVariables){
+            if (!selectedVariables.contains(variable)) selectedVariables.add(variable);
+        }
         for (VariableMu variable : selectedHierarchyVariables){
             if (!selectedVariables.contains(variable)) selectedVariables.add(variable);
         }
@@ -251,7 +257,7 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
         }
         selectedVariables.add(getTargetedRecordSwappingView().getHHIDVar());
         
-        TargetSwappingSpec targetSwapping = new TargetSwappingSpec(selectedSimilarVariables.size(),
+        TargetSwappingSpec targetSwapping = new TargetSwappingSpec(nProfiles, getTargetedRecordSwappingView().getNSim(),
                                                                    selectedHierarchyVariables.size(),
                                                                    selectedRiskVariables.size(),
                                                                    selectedCarryVariables.size(),
@@ -262,7 +268,9 @@ public class TargetedRecordSwappingController extends ControllerBase<TargetedRec
             CalculationService service = MuARGUS.getCalculationService();
             targetSwapping.getOutputVariables().addAll(selectedVariables);
             targetSwapping.setReplacementFile(new ReplacementFile("TargetSwapping"));
+            
             targetSwapping.calculateSimilarIndexes(selectedSimilarVariables);
+                        
             targetSwapping.calculateHierarchyIndexes(selectedHierarchyVariables);
             targetSwapping.calculateRiskIndexes(selectedRiskVariables);
             targetSwapping.calculateCarryIndexes(selectedCarryVariables);

@@ -25,12 +25,15 @@ import muargus.model.VariableMu;
 public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappingController> {
 
     private TargetedRecordSwapping model;
-    private DefaultListModel<VariableMu> similarListModel;
+    private ArrayList<DefaultListModel<VariableMu>> similarListModels;
     private DefaultListModel<VariableMu> hierarchyListModel;
     private DefaultListModel<VariableMu> riskListModel;
     private DefaultListModel<VariableMu> carryListModel;    
     private VariableMu hhIDVariable;
     private int hhindex;
+
+    private ArrayList<javax.swing.JScrollPane> similarScrollPanes;
+    private ArrayList<javax.swing.JList<VariableMu>> similarLists;
         
     /**
      * Creates new form NumericalRankSwappingView.
@@ -42,6 +45,12 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     public TargetedRecordSwappingView(java.awt.Frame parent, boolean modal, TargetedRecordSwappingController controller) {
         super(parent, modal, controller);
         initComponents();
+        this.similarScrollPanes = new ArrayList<>();
+        this.similarLists = new ArrayList<>();
+        // Should always have at least one similarity profile: the one that is initialized in initComponents 
+        this.similarScrollPanes.add(this.similarScrollPane);
+        this.similarLists.add(this.similarList);
+        
         setLocationRelativeTo(null);
         this.variablesTable.setDefaultRenderer(Object.class, new VariablesTableRowRenderer());
         this.similarList.setCellRenderer(new VariableNameCellRenderer());
@@ -57,11 +66,14 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     @Override
     public void initializeData() {
         
-        this.similarListModel = new DefaultListModel<>();
+        this.similarListModels = new ArrayList<>();
+        this.similarListModels.add(new DefaultListModel<>());
+        
         this.hierarchyListModel = new DefaultListModel<>();
         this.riskListModel = new DefaultListModel<>();
         this.carryListModel = new DefaultListModel<>();
-        this.similarList.setModel(this.similarListModel);
+        
+        this.similarLists.get(0).setModel(this.similarListModels.get(0));
         this.hierarchyList.setModel(this.hierarchyListModel);
         this.riskList.setModel(this.riskListModel);
         this.carryList.setModel(this.carryListModel);
@@ -76,12 +88,13 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
                 this.hhIDVariable = variable;
                 this.hhIDTextField.setText(this.hhIDVariable.getName());
                 data[index][0]="hhID";
-                hhindex=index;
+                this.hhindex=index;
             }
             index++;
         }
         this.variablesTable.setModel(new DefaultTableModel(data, new Object[]{"Info", "Variable"}));
-        this.variablesTable.getColumnModel().getColumn(0).setPreferredWidth(25);
+        this.variablesScrollPane.getColumnHeader().setVisible(false);
+        this.variablesTable.getColumnModel().getColumn(0).setPreferredWidth(35);
         // Disable selection of hhID row
         this.variablesTable.setSelectionModel(new DefaultListSelectionModel() {
             @Override
@@ -96,13 +109,31 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             }
         }); 
         
-        if (hhindex == 0) this.variablesTable.getSelectionModel().setSelectionInterval(1, 1);
+        if (this.hhindex == 0) this.variablesTable.getSelectionModel().setSelectionInterval(1, 1);
         else this.variablesTable.getSelectionModel().setSelectionInterval(0, 0);
         // Fill displayed lists with last TargetSwappingSpec
         if (this.model.getTargetSwappings().size() > 0){ 
             TargetSwappingSpec spec = this.model.getTargetSwappings().get(this.model.getTargetSwappings().size() - 1);
             updateVariableRows(spec);
-            fillList(this.similarListModel,spec.getSimilarIndexes(),spec);
+            // First add tab for each additional profile
+            for (int i=1; i<spec.getNProfiles();i++){
+                this.similarScrollPanes.add(new javax.swing.JScrollPane());
+                this.similarLists.add(new javax.swing.JList<>());
+                this.similarScrollPanes.get(i).setViewportView(this.similarLists.get(i));
+                this.similarListModels.add(new DefaultListModel<>());
+                this.similarLists.get(i).setModel(this.similarListModels.get(i));
+                this.similarLists.get(i).setCellRenderer(new VariableNameCellRenderer());
+                this.similarTabbedPane.addTab(Integer.toString(i+1), this.similarScrollPanes.get(i));
+            }
+            // Then fille each tab with content
+            int k=0;
+            for (int i=0; i<spec.getNProfiles();i++){
+                for (int j=0; j<spec.getNSim()[i]; j++){
+                    this.similarListModels.get(i).addElement(spec.getOutputVariables().get(spec.getSimilarIndexes()[k+j]));
+                }
+                k += spec.getNSim()[i];
+            }
+            
             fillList(this.hierarchyListModel,spec.getHierarchyIndexes(),spec);
             fillList(this.riskListModel,spec.getRiskIndexes(),spec);
             fillList(this.carryListModel,spec.getCarryIndexes(),spec);
@@ -128,7 +159,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             bc = TRS.getTargetSwappings().get(TRS.getTargetSwappings().size() - 1).getIsCalculated();
         }
 
-        bb = getSelectedVariables(this.riskListModel).size()*getSelectedVariables(this.similarListModel).size()*getSelectedVariables(this.hierarchyListModel).size() > 0;
+        bb = getSelectedVariables(this.riskListModel).size()*getSelectedVariables(this.similarListModels.get(0)).size()*getSelectedVariables(this.hierarchyListModel).size() > 0;
         
         this.enableMoveButtons(!bc);
         this.undoButton.setEnabled(bc);        
@@ -153,7 +184,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     /**
      * Gets the modification text belonging to this particular variable. If a
      * variable is modified a string is returned containing info on being part of
-     * "S"imilarList, "H"ierarchyList, "R"iskList
+     * "S"imilarList, "H"ierarchyList, "R"iskList, "C"arryList
      * otherwise an empty string is returned.
      * HouseholdIdentifier always returns "hhID"
      *
@@ -167,7 +198,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         for (ReplacementSpec spec : this.model.getTargetSwappings()) {
             if (spec.getOutputVariables().contains(variable)) {
                 String hs = "";
-                if (this.getSelectedVariables(this.similarListModel).contains(variable))
+                if (this.getSelectedVariables(this.similarListModels.get(0)).contains(variable))
                     hs += "S";
                 if (this.getSelectedVariables(this.hierarchyListModel).contains(variable))
                     hs += "H";
@@ -181,6 +212,9 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         return "";
     }
 
+    public int getNumberofProfiles(){
+        return this.similarLists.size();
+    }
     
     /**
      * Gets the variables displayed in a list in this view
@@ -203,7 +237,23 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
      * @return Arraylist of VariableMu's containing the selected variables.
      */
     public ArrayList<VariableMu> getSelectedSimilarVariables() {
-        return getSelectedVariables(this.similarListModel);
+        ArrayList<VariableMu> similarVars = new ArrayList<>();
+        for (int i=0; i<this.getNumberofProfiles(); i++){
+            for (Object variable : similarListModels.get(i).toArray()){
+                similarVars.add((VariableMu) variable);
+            }
+        }
+        //int SelectedProfile = this.similarTabbedPane.getSelectedIndex();
+        //return getSelectedVariables(this.similarListModels.get(SelectedProfile));
+        return similarVars;
+    }
+    
+    public int[] getNSim(){
+        int[] nSimPerProfile = new int[this.getNumberofProfiles()];
+        for (int i=0; i<this.getNumberofProfiles(); i++){
+            nSimPerProfile[i] = similarListModels.get(i).size();
+        }
+        return nSimPerProfile;
     }
     
     /**
@@ -245,6 +295,9 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     }
 
     public void enableMoveButtons(boolean buttonstatus){
+        this.AddProfileButton.setEnabled(buttonstatus);
+        this.DelProfileButton.setEnabled(buttonstatus);
+        this.MutipleProfilesPanel.setEnabled(buttonstatus);
         this.unSimilarButton.setEnabled(buttonstatus);
         this.unHierarchyButton.setEnabled(buttonstatus);
         this.unRiskButton.setEnabled(buttonstatus);
@@ -319,34 +372,35 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        jPanel1 = new javax.swing.JPanel();
-        jScrollPane1 = new javax.swing.JScrollPane();
+        variablesPanel = new javax.swing.JPanel();
+        variablesScrollPane = new javax.swing.JScrollPane();
         variablesTable = new javax.swing.JTable();
-        jPanel2 = new javax.swing.JPanel();
-        jScrollPane2 = new javax.swing.JScrollPane();
+        similarPanel = new javax.swing.JPanel();
+        similarTabbedPane = new javax.swing.JTabbedPane();
+        similarScrollPane = new javax.swing.JScrollPane();
         similarList = new javax.swing.JList<>();
         upsimilar = new javax.swing.JButton();
         downsimilar = new javax.swing.JButton();
         unSimilarButton = new javax.swing.JButton();
-        jPanel5 = new javax.swing.JPanel();
-        jScrollPane3 = new javax.swing.JScrollPane();
+        hierachyPanel = new javax.swing.JPanel();
+        hierarchyScrollPane = new javax.swing.JScrollPane();
         hierarchyList = new javax.swing.JList<>();
         downhierarchy = new javax.swing.JButton();
         uphierarchy = new javax.swing.JButton();
         unHierarchyButton = new javax.swing.JButton();
-        jPanel3 = new javax.swing.JPanel();
-        jScrollPane4 = new javax.swing.JScrollPane();
+        riskPanel = new javax.swing.JPanel();
+        riskScrollPane = new javax.swing.JScrollPane();
         riskList = new javax.swing.JList<>();
         uprisk = new javax.swing.JButton();
         downrisk = new javax.swing.JButton();
         unRiskButton = new javax.swing.JButton();
-        jPanel4 = new javax.swing.JPanel();
+        hidPanel = new javax.swing.JPanel();
         hhIDTextField = new javax.swing.JTextField();
-        jPanel6 = new javax.swing.JPanel();
+        kanonPanel = new javax.swing.JPanel();
         kthresholdTextField = new javax.swing.JTextField();
-        jPanel7 = new javax.swing.JPanel();
+        swapPanel = new javax.swing.JPanel();
         swaprateTextField = new javax.swing.JTextField();
-        jPanel8 = new javax.swing.JPanel();
+        seedPanel = new javax.swing.JPanel();
         seedTextField = new javax.swing.JTextField();
         tosimilarButton = new javax.swing.JButton();
         tohierarchyButton = new javax.swing.JButton();
@@ -355,20 +409,23 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         calculateButton = new javax.swing.JButton();
         progressBar = new javax.swing.JProgressBar();
         okButton = new javax.swing.JButton();
-        jPanel9 = new javax.swing.JPanel();
-        jScrollPane5 = new javax.swing.JScrollPane();
+        carryalongPanel = new javax.swing.JPanel();
+        carryalongScrollPane = new javax.swing.JScrollPane();
         carryList = new javax.swing.JList<>();
         downcarry = new javax.swing.JButton();
         unCarryButton = new javax.swing.JButton();
         upcarry = new javax.swing.JButton();
         tocarryButton = new javax.swing.JButton();
+        MutipleProfilesPanel = new javax.swing.JPanel();
+        AddProfileButton = new javax.swing.JButton();
+        DelProfileButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Targeted Record Swapping");
         setResizable(false);
 
-        jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Variables"));
-        jPanel1.setPreferredSize(new java.awt.Dimension(132, 247));
+        variablesPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Variables"));
+        variablesPanel.setPreferredSize(new java.awt.Dimension(132, 247));
 
         variablesTable.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
@@ -386,23 +443,27 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
                 return canEdit [columnIndex];
             }
         });
-        jScrollPane1.setViewportView(variablesTable);
+        variablesScrollPane.setViewportView(variablesTable);
 
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
+        javax.swing.GroupLayout variablesPanelLayout = new javax.swing.GroupLayout(variablesPanel);
+        variablesPanel.setLayout(variablesPanelLayout);
+        variablesPanelLayout.setHorizontalGroup(
+            variablesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(variablesScrollPane, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
         );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+        variablesPanelLayout.setVerticalGroup(
+            variablesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(variablesScrollPane, javax.swing.GroupLayout.DEFAULT_SIZE, 344, Short.MAX_VALUE)
         );
 
-        jPanel2.setBorder(javax.swing.BorderFactory.createTitledBorder("Similar"));
-        jPanel2.setPreferredSize(new java.awt.Dimension(112, 275));
+        similarPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Similarity profiles"));
+        similarPanel.setPreferredSize(new java.awt.Dimension(112, 275));
 
-        jScrollPane2.setViewportView(similarList);
+        similarTabbedPane.setTabLayoutPolicy(javax.swing.JTabbedPane.SCROLL_TAB_LAYOUT);
+
+        similarScrollPane.setViewportView(similarList);
+
+        similarTabbedPane.addTab("1", similarScrollPane);
 
         upsimilar.setText("↑");
         upsimilar.addActionListener(new java.awt.event.ActionListener() {
@@ -425,35 +486,39 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             }
         });
 
-        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
-        jPanel2.setLayout(jPanel2Layout);
-        jPanel2Layout.setHorizontalGroup(
-            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-            .addGroup(javax.swing.GroupLayout.Alignment.CENTER, jPanel2Layout.createSequentialGroup()
-                .addComponent(upsimilar)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(downsimilar))
-            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanel2Layout.createSequentialGroup()
+        javax.swing.GroupLayout similarPanelLayout = new javax.swing.GroupLayout(similarPanel);
+        similarPanel.setLayout(similarPanelLayout);
+        similarPanelLayout.setHorizontalGroup(
+            similarPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+            .addComponent(similarTabbedPane, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.LEADING, similarPanelLayout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(unSimilarButton, javax.swing.GroupLayout.DEFAULT_SIZE, 80, Short.MAX_VALUE)
+                .addGroup(similarPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(unSimilarButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(similarPanelLayout.createSequentialGroup()
+                        .addComponent(upsimilar)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(downsimilar)
+                        .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
-            .addComponent(jScrollPane2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
         );
-        jPanel2Layout.setVerticalGroup(
-            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel2Layout.createSequentialGroup()
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 194, javax.swing.GroupLayout.PREFERRED_SIZE)
+        similarPanelLayout.setVerticalGroup(
+            similarPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(similarPanelLayout.createSequentialGroup()
+                .addComponent(similarTabbedPane, javax.swing.GroupLayout.PREFERRED_SIZE, 260, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                .addGroup(similarPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(upsimilar)
                     .addComponent(downsimilar))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                 .addComponent(unSimilarButton))
         );
 
-        jPanel5.setBorder(javax.swing.BorderFactory.createTitledBorder("Hierarchy"));
+        similarTabbedPane.getAccessibleContext().setAccessibleDescription("");
 
-        jScrollPane3.setViewportView(hierarchyList);
+        hierachyPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Hierarchy"));
+
+        hierarchyScrollPane.setViewportView(hierarchyList);
 
         downhierarchy.setText("↓");
         downhierarchy.addActionListener(new java.awt.event.ActionListener() {
@@ -476,36 +541,38 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             }
         });
 
-        javax.swing.GroupLayout jPanel5Layout = new javax.swing.GroupLayout(jPanel5);
-        jPanel5.setLayout(jPanel5Layout);
-        jPanel5Layout.setHorizontalGroup(
-            jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.CENTER, jPanel5Layout.createSequentialGroup()
-                .addComponent(uphierarchy)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(downhierarchy))
-            .addGroup(jPanel5Layout.createSequentialGroup()
-                .addContainerGap()
-                .addComponent(unHierarchyButton, javax.swing.GroupLayout.DEFAULT_SIZE, 80, Short.MAX_VALUE)
+        javax.swing.GroupLayout hierachyPanelLayout = new javax.swing.GroupLayout(hierachyPanel);
+        hierachyPanel.setLayout(hierachyPanelLayout);
+        hierachyPanelLayout.setHorizontalGroup(
+            hierachyPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(hierarchyScrollPane, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, hierachyPanelLayout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(hierachyPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(unHierarchyButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(hierachyPanelLayout.createSequentialGroup()
+                        .addComponent(uphierarchy)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(downhierarchy)))
                 .addContainerGap())
-            .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
         );
-        jPanel5Layout.setVerticalGroup(
-            jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel5Layout.createSequentialGroup()
-                .addComponent(jScrollPane3, javax.swing.GroupLayout.PREFERRED_SIZE, 194, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel5Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+        hierachyPanelLayout.setVerticalGroup(
+            hierachyPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(hierachyPanelLayout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(hierarchyScrollPane, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(hierachyPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(uphierarchy)
                     .addComponent(downhierarchy))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(unHierarchyButton))
         );
 
-        jPanel3.setBorder(javax.swing.BorderFactory.createTitledBorder("Risk"));
-        jPanel3.setPreferredSize(new java.awt.Dimension(112, 275));
+        riskPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Risk"));
+        riskPanel.setPreferredSize(new java.awt.Dimension(112, 275));
 
-        jScrollPane4.setViewportView(riskList);
+        riskScrollPane.setViewportView(riskList);
 
         uprisk.setText("↑");
         uprisk.addActionListener(new java.awt.event.ActionListener() {
@@ -528,107 +595,118 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             }
         });
 
-        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
-        jPanel3.setLayout(jPanel3Layout);
-        jPanel3Layout.setHorizontalGroup(
-            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(unRiskButton, javax.swing.GroupLayout.Alignment.CENTER, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE)
-            .addGroup(javax.swing.GroupLayout.Alignment.CENTER, jPanel3Layout.createSequentialGroup()
-                .addComponent(uprisk)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(downrisk))
-            .addComponent(jScrollPane4, javax.swing.GroupLayout.DEFAULT_SIZE, 100, Short.MAX_VALUE)
+        javax.swing.GroupLayout riskPanelLayout = new javax.swing.GroupLayout(riskPanel);
+        riskPanel.setLayout(riskPanelLayout);
+        riskPanelLayout.setHorizontalGroup(
+            riskPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(riskScrollPane, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addGroup(riskPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(riskPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(unRiskButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(riskPanelLayout.createSequentialGroup()
+                        .addComponent(uprisk)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(downrisk)
+                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addContainerGap())
         );
-        jPanel3Layout.setVerticalGroup(
-            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel3Layout.createSequentialGroup()
-                .addComponent(jScrollPane4, javax.swing.GroupLayout.PREFERRED_SIZE, 194, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+        riskPanelLayout.setVerticalGroup(
+            riskPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(riskPanelLayout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(riskScrollPane, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(riskPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(uprisk)
                     .addComponent(downrisk))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(unRiskButton))
         );
 
-        jPanel4.setBorder(javax.swing.BorderFactory.createTitledBorder("Household ID"));
+        hidPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Household ID"));
 
         hhIDTextField.setEditable(false);
 
-        javax.swing.GroupLayout jPanel4Layout = new javax.swing.GroupLayout(jPanel4);
-        jPanel4.setLayout(jPanel4Layout);
-        jPanel4Layout.setHorizontalGroup(
-            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(hhIDTextField)
+        javax.swing.GroupLayout hidPanelLayout = new javax.swing.GroupLayout(hidPanel);
+        hidPanel.setLayout(hidPanelLayout);
+        hidPanelLayout.setHorizontalGroup(
+            hidPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(hhIDTextField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 91, Short.MAX_VALUE)
         );
-        jPanel4Layout.setVerticalGroup(
-            jPanel4Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(hhIDTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+        hidPanelLayout.setVerticalGroup(
+            hidPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(hidPanelLayout.createSequentialGroup()
+                .addComponent(hhIDTextField, javax.swing.GroupLayout.PREFERRED_SIZE, 20, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
 
-        jPanel6.setBorder(javax.swing.BorderFactory.createTitledBorder("Threshold (k-anon)"));
+        kanonPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("K-anonymity"));
 
+        kthresholdTextField.setHorizontalAlignment(javax.swing.JTextField.TRAILING);
         kthresholdTextField.setText("3");
         kthresholdTextField.setPreferredSize(new java.awt.Dimension(6, 20));
 
-        javax.swing.GroupLayout jPanel6Layout = new javax.swing.GroupLayout(jPanel6);
-        jPanel6.setLayout(jPanel6Layout);
-        jPanel6Layout.setHorizontalGroup(
-            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        javax.swing.GroupLayout kanonPanelLayout = new javax.swing.GroupLayout(kanonPanel);
+        kanonPanel.setLayout(kanonPanelLayout);
+        kanonPanelLayout.setHorizontalGroup(
+            kanonPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(kthresholdTextField, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
-        jPanel6Layout.setVerticalGroup(
-            jPanel6Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        kanonPanelLayout.setVerticalGroup(
+            kanonPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(kthresholdTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
         );
 
-        jPanel7.setBorder(javax.swing.BorderFactory.createTitledBorder("Swaprate"));
+        swapPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Swaprate"));
 
-        swaprateTextField.setText("0.15");
+        swaprateTextField.setHorizontalAlignment(javax.swing.JTextField.TRAILING);
+        swaprateTextField.setText("0.05");
         swaprateTextField.setPreferredSize(new java.awt.Dimension(6, 20));
 
-        javax.swing.GroupLayout jPanel7Layout = new javax.swing.GroupLayout(jPanel7);
-        jPanel7.setLayout(jPanel7Layout);
-        jPanel7Layout.setHorizontalGroup(
-            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        javax.swing.GroupLayout swapPanelLayout = new javax.swing.GroupLayout(swapPanel);
+        swapPanel.setLayout(swapPanelLayout);
+        swapPanelLayout.setHorizontalGroup(
+            swapPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(swaprateTextField, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
-        jPanel7Layout.setVerticalGroup(
-            jPanel7Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        swapPanelLayout.setVerticalGroup(
+            swapPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(swaprateTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
         );
 
-        jPanel8.setBorder(javax.swing.BorderFactory.createTitledBorder("Seed"));
+        seedPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Seed"));
 
+        seedTextField.setHorizontalAlignment(javax.swing.JTextField.TRAILING);
         seedTextField.setText("12345");
         seedTextField.setPreferredSize(new java.awt.Dimension(6, 20));
 
-        javax.swing.GroupLayout jPanel8Layout = new javax.swing.GroupLayout(jPanel8);
-        jPanel8.setLayout(jPanel8Layout);
-        jPanel8Layout.setHorizontalGroup(
-            jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addComponent(seedTextField, javax.swing.GroupLayout.DEFAULT_SIZE, 96, Short.MAX_VALUE)
+        javax.swing.GroupLayout seedPanelLayout = new javax.swing.GroupLayout(seedPanel);
+        seedPanel.setLayout(seedPanelLayout);
+        seedPanelLayout.setHorizontalGroup(
+            seedPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(seedTextField, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
-        jPanel8Layout.setVerticalGroup(
-            jPanel8Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+        seedPanelLayout.setVerticalGroup(
+            seedPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addComponent(seedTextField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
         );
 
-        tosimilarButton.setText(">> Similar");
+        tosimilarButton.setText("Add to Similarity Profile");
         tosimilarButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 tosimilarButtonActionPerformed(evt);
             }
         });
 
-        tohierarchyButton.setText(">> Hierarchy");
+        tohierarchyButton.setText("Add to Hierarchy");
         tohierarchyButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 tohierarchyButtonActionPerformed(evt);
             }
         });
 
-        toriskButton.setText(">> Risk");
+        toriskButton.setText("Add to Risk");
         toriskButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 toriskButtonActionPerformed(evt);
@@ -656,10 +734,10 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             }
         });
 
-        jPanel9.setBorder(javax.swing.BorderFactory.createTitledBorder("Carry"));
-        jPanel9.setPreferredSize(new java.awt.Dimension(112, 275));
+        carryalongPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Carry along"));
+        carryalongPanel.setPreferredSize(new java.awt.Dimension(112, 275));
 
-        jScrollPane5.setViewportView(carryList);
+        carryalongScrollPane.setViewportView(carryList);
 
         downcarry.setText("↓");
         downcarry.addActionListener(new java.awt.event.ActionListener() {
@@ -682,128 +760,160 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             }
         });
 
-        javax.swing.GroupLayout jPanel9Layout = new javax.swing.GroupLayout(jPanel9);
-        jPanel9.setLayout(jPanel9Layout);
-        jPanel9Layout.setHorizontalGroup(
-            jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel9Layout.createSequentialGroup()
+        javax.swing.GroupLayout carryalongPanelLayout = new javax.swing.GroupLayout(carryalongPanel);
+        carryalongPanel.setLayout(carryalongPanelLayout);
+        carryalongPanelLayout.setHorizontalGroup(
+            carryalongPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addComponent(carryalongScrollPane, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+            .addGroup(carryalongPanelLayout.createSequentialGroup()
                 .addGap(8, 8, 8)
-                .addGroup(jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
-                    .addGroup(jPanel9Layout.createSequentialGroup()
+                .addGroup(carryalongPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, carryalongPanelLayout.createSequentialGroup()
+                        .addComponent(unCarryButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addContainerGap())
+                    .addGroup(carryalongPanelLayout.createSequentialGroup()
                         .addComponent(upcarry)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(downcarry))
-                    .addComponent(unCarryButton, javax.swing.GroupLayout.PREFERRED_SIZE, 80, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-            .addComponent(jScrollPane5, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                        .addComponent(downcarry)
+                        .addGap(8, 10, Short.MAX_VALUE))))
         );
-        jPanel9Layout.setVerticalGroup(
-            jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel9Layout.createSequentialGroup()
-                .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 194, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(jPanel9Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+        carryalongPanelLayout.setVerticalGroup(
+            carryalongPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(carryalongPanelLayout.createSequentialGroup()
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(carryalongScrollPane, javax.swing.GroupLayout.PREFERRED_SIZE, 231, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(carryalongPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(upcarry)
                     .addComponent(downcarry))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(unCarryButton))
         );
 
-        tocarryButton.setText(">> Carry");
+        tocarryButton.setText("Add to Carry along");
         tocarryButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 tocarryButtonActionPerformed(evt);
             }
         });
 
+        MutipleProfilesPanel.setBorder(javax.swing.BorderFactory.createTitledBorder("Multiple similarity profiles"));
+
+        AddProfileButton.setText("Create New");
+        AddProfileButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                AddProfileButtonActionPerformed(evt);
+            }
+        });
+
+        DelProfileButton.setText("Remove Seclected");
+        DelProfileButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                DelProfileButtonActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout MutipleProfilesPanelLayout = new javax.swing.GroupLayout(MutipleProfilesPanel);
+        MutipleProfilesPanel.setLayout(MutipleProfilesPanelLayout);
+        MutipleProfilesPanelLayout.setHorizontalGroup(
+            MutipleProfilesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(MutipleProfilesPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(MutipleProfilesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(DelProfileButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(AddProfileButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(15, Short.MAX_VALUE))
+        );
+        MutipleProfilesPanelLayout.setVerticalGroup(
+            MutipleProfilesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(MutipleProfilesPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(AddProfileButton)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(DelProfileButton)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(variablesPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(tosimilarButton, javax.swing.GroupLayout.Alignment.CENTER, javax.swing.GroupLayout.DEFAULT_SIZE, 158, Short.MAX_VALUE)
+                    .addComponent(tohierarchyButton, javax.swing.GroupLayout.Alignment.CENTER, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(toriskButton, javax.swing.GroupLayout.Alignment.CENTER, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(tocarryButton, javax.swing.GroupLayout.Alignment.CENTER, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(MutipleProfilesPanel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createSequentialGroup()
-                        .addContainerGap()
-                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(similarPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                                    .addComponent(tohierarchyButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(tosimilarButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(toriskButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addComponent(tocarryButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jPanel5, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jPanel9, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(103, 103, 103)
-                                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, 466, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
-                            .addComponent(jPanel8, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                            .addComponent(calculateButton)
-                            .addComponent(undoButton)
-                            .addComponent(okButton)))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(727, 727, 727)
-                        .addComponent(jPanel4, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(727, 727, 727)
-                        .addComponent(jPanel6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(727, 727, 727)
-                        .addComponent(jPanel7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                .addGap(10, 10, 10))
+                        .addComponent(hierachyPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(riskPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 116, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(carryalongPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 114, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(progressBar, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
+                    .addComponent(hidPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(kanonPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(swapPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(seedPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(calculateButton)
+                    .addComponent(undoButton)
+                    .addComponent(okButton))
+                .addContainerGap())
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addGap(8, 8, 8)
+                        .addComponent(hidPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(kanonPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(swapPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(seedPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(calculateButton)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(undoButton)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(okButton)
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jPanel4, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jPanel6, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jPanel7, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(jPanel8, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(12, 12, 12)
-                                .addComponent(calculateButton)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                                .addComponent(undoButton)
-                                .addGap(13, 13, 13)
-                                .addComponent(okButton))
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(variablesPanel, javax.swing.GroupLayout.PREFERRED_SIZE, 367, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addGroup(layout.createSequentialGroup()
                                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                    .addComponent(jPanel9, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                        .addGroup(layout.createSequentialGroup()
-                                            .addGap(50, 50, 50)
-                                            .addComponent(tosimilarButton)
-                                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                            .addComponent(tohierarchyButton)
-                                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                            .addComponent(toriskButton)
-                                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                            .addComponent(tocarryButton))
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                            .addComponent(jPanel3, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                            .addComponent(jPanel5, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                            .addComponent(jPanel2, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
+                                    .addComponent(carryalongPanel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 346, Short.MAX_VALUE)
+                                    .addComponent(riskPanel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 346, Short.MAX_VALUE)
+                                    .addComponent(hierachyPanel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                                    .addComponent(similarPanel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, 346, Short.MAX_VALUE))
                                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addComponent(jPanel1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, 295, Short.MAX_VALUE))
-                .addContainerGap())
+                                .addComponent(progressBar, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                            .addGroup(layout.createSequentialGroup()
+                                .addGap(53, 53, 53)
+                                .addComponent(tosimilarButton)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(tohierarchyButton)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(toriskButton)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(tocarryButton)
+                                .addGap(15, 15, 15)
+                                .addComponent(MutipleProfilesPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
         );
 
         pack();
@@ -854,36 +964,6 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         }
     }
     
-    private void tosimilarButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_tosimilarButtonActionPerformed
-        toSelectionList(this.similarListModel);
-        updateValues();
-    }//GEN-LAST:event_tosimilarButtonActionPerformed
-
-    private void tohierarchyButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_tohierarchyButtonActionPerformed
-        toSelectionList(this.hierarchyListModel);
-        updateValues();
-    }//GEN-LAST:event_tohierarchyButtonActionPerformed
-
-    private void toriskButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_toriskButtonActionPerformed
-        toSelectionList(this.riskListModel);
-        updateValues();
-    }//GEN-LAST:event_toriskButtonActionPerformed
-
-    private void unSimilarButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_unSimilarButtonActionPerformed
-        fromSelectionList(this.similarListModel, this.similarList);
-        updateValues();
-    }//GEN-LAST:event_unSimilarButtonActionPerformed
-
-    private void unHierarchyButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_unHierarchyButtonActionPerformed
-        fromSelectionList(this.hierarchyListModel, this.hierarchyList);
-        updateValues();
-    }//GEN-LAST:event_unHierarchyButtonActionPerformed
-
-    private void unRiskButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_unRiskButtonActionPerformed
-        fromSelectionList(this.riskListModel, this.riskList);
-        updateValues();
-    }//GEN-LAST:event_unRiskButtonActionPerformed
-
     private void moveUpinList(DefaultListModel<VariableMu> ListModel, JList List){
         int index = List.getSelectedIndex();
         if (index > 0) {
@@ -900,10 +980,43 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             ListModel.add(index + 1, variable);
             List.setSelectedIndex(index + 1);
         }
-    }
+    }    
     
+    private void tosimilarButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_tosimilarButtonActionPerformed
+        int SelectedProfile = this.similarTabbedPane.getSelectedIndex();
+        toSelectionList(this.similarListModels.get(SelectedProfile));
+        updateValues();
+    }//GEN-LAST:event_tosimilarButtonActionPerformed
+
+    private void tohierarchyButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_tohierarchyButtonActionPerformed
+        toSelectionList(this.hierarchyListModel);
+        updateValues();
+    }//GEN-LAST:event_tohierarchyButtonActionPerformed
+
+    private void toriskButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_toriskButtonActionPerformed
+        toSelectionList(this.riskListModel);
+        updateValues();
+    }//GEN-LAST:event_toriskButtonActionPerformed
+
+    private void unSimilarButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_unSimilarButtonActionPerformed
+        int SelectedProfile = this.similarTabbedPane.getSelectedIndex();
+        fromSelectionList(this.similarListModels.get(SelectedProfile), this.similarLists.get(SelectedProfile));
+        updateValues();
+    }//GEN-LAST:event_unSimilarButtonActionPerformed
+
+    private void unHierarchyButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_unHierarchyButtonActionPerformed
+        fromSelectionList(this.hierarchyListModel, this.hierarchyList);
+        updateValues();
+    }//GEN-LAST:event_unHierarchyButtonActionPerformed
+
+    private void unRiskButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_unRiskButtonActionPerformed
+        fromSelectionList(this.riskListModel, this.riskList);
+        updateValues();
+    }//GEN-LAST:event_unRiskButtonActionPerformed
+
     private void upsimilarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_upsimilarActionPerformed
-        moveUpinList(this.similarListModel,this.similarList);
+        int SelectedProfile = this.similarTabbedPane.getSelectedIndex();
+        moveUpinList(this.similarListModels.get(SelectedProfile),this.similarLists.get(SelectedProfile));
     }//GEN-LAST:event_upsimilarActionPerformed
 
     private void uphierarchyActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_uphierarchyActionPerformed
@@ -915,7 +1028,8 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     }//GEN-LAST:event_upriskActionPerformed
 
     private void downsimilarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_downsimilarActionPerformed
-        moveDowninList(this.similarListModel,this.similarList);
+        int SelectedProfile = this.similarTabbedPane.getSelectedIndex();
+        moveDowninList(this.similarListModels.get(SelectedProfile),this.similarLists.get(SelectedProfile));
     }//GEN-LAST:event_downsimilarActionPerformed
 
     private void downhierarchyActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_downhierarchyActionPerformed
@@ -954,35 +1068,63 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         updateValues();
     }//GEN-LAST:event_tocarryButtonActionPerformed
 
+    private void AddProfileButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_AddProfileButtonActionPerformed
+        this.similarScrollPanes.add(new javax.swing.JScrollPane());
+        this.similarLists.add(new javax.swing.JList<>());
+        this.similarScrollPanes.get(this.similarScrollPanes.size()-1).setViewportView(this.similarLists.get(this.similarLists.size()-1));
+        this.similarListModels.add(new DefaultListModel<>());
+        
+        this.similarLists.get(this.similarLists.size()-1).setModel(this.similarListModels.get(this.similarListModels.size()-1));
+        this.similarLists.get(this.similarLists.size()-1).setCellRenderer(new VariableNameCellRenderer());
+        
+        this.similarTabbedPane.addTab(Integer.toString(this.similarScrollPanes.size()), this.similarScrollPanes.get(this.similarScrollPanes.size()-1));
+        this.similarTabbedPane.setSelectedIndex(this.similarScrollPanes.size()-1);
+    }//GEN-LAST:event_AddProfileButtonActionPerformed
+
+    private void DelProfileButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_DelProfileButtonActionPerformed
+        if (this.similarTabbedPane.getTabCount()>1) {
+            int removeID = this.similarTabbedPane.getSelectedIndex();
+            this.similarTabbedPane.remove(removeID);
+            this.similarScrollPanes.remove(removeID);
+            this.similarLists.remove(removeID);
+            this.similarListModels.remove(removeID);
+            for (int i=removeID;i<this.similarTabbedPane.getTabCount();i++){
+                this.similarTabbedPane.setTitleAt(i, Integer.toString(Integer.parseInt(this.similarTabbedPane.getTitleAt(i))-1));
+            }
+        }
+    }//GEN-LAST:event_DelProfileButtonActionPerformed
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton AddProfileButton;
+    private javax.swing.JButton DelProfileButton;
+    private javax.swing.JPanel MutipleProfilesPanel;
     private javax.swing.JButton calculateButton;
     private javax.swing.JList<VariableMu> carryList;
+    private javax.swing.JPanel carryalongPanel;
+    private javax.swing.JScrollPane carryalongScrollPane;
     private javax.swing.JButton downcarry;
     private javax.swing.JButton downhierarchy;
     private javax.swing.JButton downrisk;
     private javax.swing.JButton downsimilar;
     private javax.swing.JTextField hhIDTextField;
+    private javax.swing.JPanel hidPanel;
+    private javax.swing.JPanel hierachyPanel;
     private javax.swing.JList<VariableMu> hierarchyList;
-    private javax.swing.JPanel jPanel1;
-    private javax.swing.JPanel jPanel2;
-    private javax.swing.JPanel jPanel3;
-    private javax.swing.JPanel jPanel4;
-    private javax.swing.JPanel jPanel5;
-    private javax.swing.JPanel jPanel6;
-    private javax.swing.JPanel jPanel7;
-    private javax.swing.JPanel jPanel8;
-    private javax.swing.JPanel jPanel9;
-    private javax.swing.JScrollPane jScrollPane1;
-    private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JScrollPane jScrollPane3;
-    private javax.swing.JScrollPane jScrollPane4;
-    private javax.swing.JScrollPane jScrollPane5;
+    private javax.swing.JScrollPane hierarchyScrollPane;
+    private javax.swing.JPanel kanonPanel;
     private javax.swing.JTextField kthresholdTextField;
     private javax.swing.JButton okButton;
     private javax.swing.JProgressBar progressBar;
     private javax.swing.JList<VariableMu> riskList;
+    private javax.swing.JPanel riskPanel;
+    private javax.swing.JScrollPane riskScrollPane;
+    private javax.swing.JPanel seedPanel;
     private javax.swing.JTextField seedTextField;
     private javax.swing.JList<VariableMu> similarList;
+    private javax.swing.JPanel similarPanel;
+    private javax.swing.JScrollPane similarScrollPane;
+    private javax.swing.JTabbedPane similarTabbedPane;
+    private javax.swing.JPanel swapPanel;
     private javax.swing.JTextField swaprateTextField;
     private javax.swing.JButton tocarryButton;
     private javax.swing.JButton tohierarchyButton;
@@ -997,6 +1139,8 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
     private javax.swing.JButton uphierarchy;
     private javax.swing.JButton uprisk;
     private javax.swing.JButton upsimilar;
+    private javax.swing.JPanel variablesPanel;
+    private javax.swing.JScrollPane variablesScrollPane;
     private javax.swing.JTable variablesTable;
     // End of variables declaration//GEN-END:variables
 }
