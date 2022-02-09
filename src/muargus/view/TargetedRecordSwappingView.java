@@ -125,7 +125,7 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
                 this.similarLists.get(i).setCellRenderer(new VariableNameCellRenderer());
                 this.similarTabbedPane.addTab(Integer.toString(i+1), this.similarScrollPanes.get(i));
             }
-            // Then fille each tab with content
+            // Then fill each tab with content
             int k=0;
             for (int i=0; i<spec.getNProfiles();i++){
                 for (int j=0; j<spec.getNSim()[i]; j++){
@@ -138,6 +138,11 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             fillList(this.riskListModel,spec.getRiskIndexes(),spec);
             fillList(this.carryListModel,spec.getCarryIndexes(),spec);
             this.updateVariableRows(spec);
+            
+            // Finally set the used parameters
+            this.kthresholdTextField.setText(Integer.toString(spec.getkThreshold()));
+            this.seedTextField.setText(Integer.toString(spec.getSeed()));
+            this.swaprateTextField.setText(Double.toString(spec.getSwaprate()));
         }
         updateValues();
     }
