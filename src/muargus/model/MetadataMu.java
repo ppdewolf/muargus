@@ -339,7 +339,7 @@ public final class MetadataMu {
     }
 
     /**
-     * Returns whether the data is Household data.
+     * Returns whether the data is Household data, i.e., has household_ID variable.
      *
      * @return Boolean stating whether the data is Household data.
      */

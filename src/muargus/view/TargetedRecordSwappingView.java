@@ -811,7 +811,8 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
             }
         });
 
-        DelProfileButton.setText("Remove Seclected");
+        DelProfileButton.setText("Remove Selected");
+        DelProfileButton.setToolTipText("");
         DelProfileButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 DelProfileButtonActionPerformed(evt);
@@ -823,11 +824,11 @@ public class TargetedRecordSwappingView extends DialogBase<TargetedRecordSwappin
         MutipleProfilesPanelLayout.setHorizontalGroup(
             MutipleProfilesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(MutipleProfilesPanelLayout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(MutipleProfilesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addComponent(DelProfileButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(AddProfileButton, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                .addContainerGap(15, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(MutipleProfilesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.CENTER)
+                    .addComponent(AddProfileButton, javax.swing.GroupLayout.PREFERRED_SIZE, 115, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(DelProfileButton))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         MutipleProfilesPanelLayout.setVerticalGroup(
             MutipleProfilesPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)

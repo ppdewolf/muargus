@@ -554,6 +554,7 @@
         <Component class="javax.swing.JButton" name="targetedRecordSwappingButton">
           <Properties>
             <Property name="text" type="java.lang.String" value="TRS"/>
+            <Property name="toolTipText" type="java.lang.String" value="Targeted Record Swapping"/>
             <Property name="enabled" type="boolean" value="false"/>
             <Property name="focusable" type="boolean" value="false"/>
             <Property name="horizontalTextPosition" type="int" value="0"/>

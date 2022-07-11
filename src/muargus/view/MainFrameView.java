@@ -632,6 +632,7 @@ public class MainFrameView extends javax.swing.JFrame {
         toolBar.add(numericalRankSwappingButton);
 
         targetedRecordSwappingButton.setText("TRS");
+        targetedRecordSwappingButton.setToolTipText("Targeted Record Swapping");
         targetedRecordSwappingButton.setEnabled(false);
         targetedRecordSwappingButton.setFocusable(false);
         targetedRecordSwappingButton.setHorizontalTextPosition(javax.swing.SwingConstants.CENTER);
