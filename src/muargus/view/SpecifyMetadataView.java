@@ -48,7 +48,7 @@ public class SpecifyMetadataView extends DialogBase<SpecifyMetadataController> {
     private final java.awt.Frame parent;
 
     private DefaultListModel<VariableMu> variableListModel;
-    private DefaultComboBoxModel<VariableMu> comboBoxModel;
+    //private DefaultComboBoxModel<VariableMu> comboBoxModel;
 
     /**
      * Creates new form SpecifyMetadataView
@@ -865,6 +865,7 @@ public class SpecifyMetadataView extends DialogBase<SpecifyMetadataController> {
 
         relatedToPanel.setText("Related to:");
 
+        relatedToComboBox.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "--none--" }));
         relatedToComboBox.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 relatedToComboBoxActionPerformed(evt);
